@@ -35,7 +35,7 @@ logging.getLogger('asyncio').setLevel(logging.CRITICAL)
 logging.getLogger('aiohttp').setLevel(logging.CRITICAL)
 
 
-CURRENT_VERSION = "1.5.10"
+CURRENT_VERSION = "1.5.11"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 RESOLUTIONS = ["chunked", "2160p60", "2160p30", "2160p20", "1440p60", "1440p30", "1440p20", "1080p60", "1080p30", "1080p20", "720p60", "720p30", "720p20", "480p60", "480p30", "360p60", "360p30", "160p60", "160p30"]
 
