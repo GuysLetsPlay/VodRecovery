@@ -1,15 +1,24 @@
-<h1 align="center">Vod Recovery</h1>
+<div align="center">
 
-**A Twitch recovery tool used to retrieve and download live streams, VODs, highlights, and clips**
+# Vod Recovery
 
-## 📦 Installation
+**A Twitch recovery tool to retrieve and download live streams, VODs, highlights, and clips.**
+
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Releases](https://img.shields.io/github/v/release/MacielG1/VodRecovery?style=for-the-badge)](https://github.com/MacielG1/VodRecovery/releases)
+
+[Installation](#installation) • [Features](#core-features) • [Usage](#usage) • [CLI Mode](#cli-mode)
+
+</div>
+
+## Installation
 
 1. Install [Python](https://www.python.org/downloads/), make sure the box labeled "Add Python to environment variables" is checked
 2. Download the app by clicking [here](https://github.com/MacielG1/VodRecovery/archive/refs/heads/main.zip) or download it from the [releases](https://github.com/MacielG1/VodRecovery/releases/latest) page
 3. Extract the zip file and run the file: `install_dependencies.py`
 4. Start by running `vod_recovery.py` or one of the shortcuts
 
-## 📋 Core Features
+## Core Features
 
 - Recover VODs, clips, and highlights (including sub-only)
 - Available qualities: 2160p, 1440p, 1080p, 720p, and more
@@ -20,11 +29,11 @@
 - Unmute M3U8 files for playback in media players
 - Optional CLI mode usage
 
-## 🔖Latest Release
+## Latest Release
 
 https://github.com/MacielG1/VodRecovery/releases/latest
 
-## 🚀Usage
+## Usage
 
 ```
 1) VOD Recovery
@@ -37,7 +46,7 @@ https://github.com/MacielG1/VodRecovery/releases/latest
 8) Exit
 ```
 
-## 🖥️ CLI Mode
+## CLI Mode
 
 ```bash
 python vod_recovery.py --url https://twitchtracker.com/streamer/streams/1234567890
@@ -58,7 +67,7 @@ python vod_recovery.py --m3u8 "https://example.com/index-dvr.m3u8" --watch
 - **Clips** Use `--clip <url>` for direct clip retrieval.
 - **Direct M3U8** Use `--m3u8 <m3u8_url>` to download, trim, or watch directly from an M3U8 URL.
 
-## 📜Notes
+## Notes
 
 - How Twitch Handles [VOD Storage](https://help.twitch.tv/s/article/video-on-demand#limit)
 - Original Repo: [VodRecovery](https://github.com/ArdianaLeek/VodRecovery) by Shishkebaboo
