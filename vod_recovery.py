@@ -35,7 +35,7 @@ logging.getLogger('asyncio').setLevel(logging.CRITICAL)
 logging.getLogger('aiohttp').setLevel(logging.CRITICAL)
 
 
-CURRENT_VERSION = "1.5.12"
+CURRENT_VERSION = "1.5.13"
 SUPPORTED_FORMATS = [".mp4", ".mkv", ".mov", ".avi", ".ts"]
 RESOLUTIONS = ["chunked", "2160p60", "2160p30", "2160p20", "1440p60", "1440p30", "1440p20", "1080p60", "1080p30", "1080p20", "720p60", "720p30", "720p20", "480p60", "480p30", "360p60", "360p30", "160p60", "160p30"]
 
@@ -1282,12 +1282,36 @@ def write_m3u8_to_file(m3u8_link, destination_path, max_retries=5):
     attempt = 0
     while attempt < max_retries:
         try:
-            with open(destination_path, "w", encoding="utf-8") as m3u8_file:
-                m3u8_file.write(requests.get(m3u8_link, timeout=30).text)
-            return m3u8_file
+            response = requests.get(m3u8_link, timeout=30)
+            if response.status_code == 200:
+                with open(destination_path, "w", encoding="utf-8") as m3u8_file:
+                    m3u8_file.write(response.text)
+                return m3u8_file
+            elif response.status_code in (403, 404, 410):
+                vod_id = parse_video_id_from_m3u8_link(m3u8_link)
+                generated_path = os.path.join(get_default_directory(), f"vod_{vod_id}_generated.m3u8")
+                if os.path.exists(generated_path):
+                    with open(generated_path, "r", encoding="utf-8") as gen_file:
+                        content = gen_file.read()
+                    with open(destination_path, "w", encoding="utf-8") as m3u8_file:
+                        m3u8_file.write(content)
+                    return m3u8_file
+                base_url = m3u8_link.replace("index-dvr.m3u8", "")
+                generated_m3u8 = generate_m3u8_from_segments(base_url)
+                if generated_m3u8:
+                    absolute_m3u8 = generated_m3u8.replace("\n0.ts", f"\n{base_url}0.ts")
+                    for i in range(1, 100000):
+                        if f"\n{i}.ts" in absolute_m3u8:
+                            absolute_m3u8 = absolute_m3u8.replace(f"\n{i}.ts", f"\n{base_url}{i}.ts")
+                        else:
+                            break
+                    with open(destination_path, "w", encoding="utf-8") as m3u8_file:
+                        m3u8_file.write(absolute_m3u8)
+                    return m3u8_file
         except Exception:
-            attempt += 1
-            time.sleep(1)
+            pass
+        attempt += 1
+        time.sleep(1)
     raise Exception(f"Failed to write M3U8 after {max_retries} attempts.")
 
 
@@ -1356,8 +1380,20 @@ def calculate_days_since_broadcast(start_timestamp):
 
 
 def is_video_muted(m3u8_link):
-    response = requests.get(m3u8_link, timeout=20).text
-    return bool("unmuted" in response)
+    try:
+        response = requests.get(m3u8_link, timeout=20)
+        if response.status_code == 200:
+            return bool("unmuted" in response.text)
+        elif response.status_code in (403, 404, 410):
+            vod_id = parse_video_id_from_m3u8_link(m3u8_link)
+            generated_path = os.path.join(get_default_directory(), f"vod_{vod_id}_generated.m3u8")
+            if os.path.exists(generated_path):
+                with open(generated_path, "r", encoding="utf-8") as f:
+                    return bool("unmuted" in f.read())
+            return False
+    except Exception:
+        pass
+    return False
 
 
 def is_twitch_livestream_url(url):
@@ -1994,6 +2030,11 @@ def return_supported_qualities(m3u8_link):
             response = requests.get(url, timeout=20)
             if response.status_code == 200:
                 return resolution
+            elif response.status_code in (403, 404, 410):
+                segment_url = url.replace("index-dvr.m3u8", "0.ts")
+                seg_response = requests.head(segment_url, timeout=10)
+                if seg_response.status_code == 200:
+                    return resolution
         except Exception as e:
             pass
         return None
@@ -2707,6 +2748,18 @@ def check_if_unmuted_is_playable(m3u8_source):
 
 
 def process_m3u8_configuration(m3u8_link, skip_check=False):
+    vod_id = parse_video_id_from_m3u8_link(m3u8_link)
+    generated_path = os.path.join(get_default_directory(), f"vod_{vod_id}_generated.m3u8")
+    is_blocked_vod = False
+    try:
+        response = requests.head(m3u8_link, timeout=10)
+        is_blocked_vod = response.status_code in (403, 404, 410)
+    except Exception:
+        pass
+
+    if is_blocked_vod and os.path.exists(generated_path):
+        return generated_path
+
     playlist_segments = get_all_playlist_segments(m3u8_link)
     check_segments = read_config_by_key("settings", "CHECK_SEGMENTS") and not skip_check
 
@@ -4350,6 +4403,58 @@ def extract_id_from_url(url: str):
     return extract_id_from_url(url)
 
 
+def generate_m3u8_from_segments(base_url, segment_duration=10.0):
+    def check_segment(n, retries=2):
+        for attempt in range(retries):
+            try:
+                url = f"{base_url}{n}.ts"
+                resp = requests.head(url, timeout=10)
+                return resp.status_code == 200
+            except Exception:
+                if attempt < retries - 1:
+                    time.sleep(1)
+                continue
+        return False
+    
+    if not check_segment(0):
+        return None
+    
+    print("Segments accessible but playlist blocked. Generating m3u8...")
+    
+    low, high = 0, 100
+    while check_segment(high):
+        low = high
+        high *= 2
+        if high > 50000:
+            break
+    
+    while low < high:
+        mid = (low + high + 1) // 2
+        if check_segment(mid):
+            low = mid
+        else:
+            high = mid - 1
+    
+    last_segment = low
+    print(f"Found {last_segment + 1} segments (~{(last_segment + 1) * segment_duration / 60:.0f} minutes)")
+    
+    m3u8_lines = [
+        "#EXTM3U",
+        "#EXT-X-VERSION:3",
+        "#EXT-X-TARGETDURATION:10",
+        "#EXT-X-PLAYLIST-TYPE:VOD",
+        "#EXT-X-MEDIA-SEQUENCE:0",
+    ]
+    
+    for i in range(last_segment + 1):
+        m3u8_lines.append(f"#EXTINF:{segment_duration},")
+        m3u8_lines.append(f"{i}.ts")
+    
+    m3u8_lines.append("#EXT-X-ENDLIST")
+    
+    return "\n".join(m3u8_lines)
+
+
 def fetch_twitch_data(vod_id, retries=3, delay=5):
     attempt = 0
     while attempt < retries:
@@ -4428,7 +4533,22 @@ def get_vod_or_highlight_url(vod_id):
                 response = requests.get(url, timeout=30)
                 if response.status_code == 200:
                     return url, vod_data.get("title"), vod_data.get("createdAt")
-                elif response.status_code == 403:
+                elif response.status_code in (403, 404, 410):
+                    base_url = url.replace("index-dvr.m3u8", "")
+                    generated_m3u8 = generate_m3u8_from_segments(base_url)
+                    if generated_m3u8:
+                        broadcast_id = parse_video_id_from_m3u8_link(url)
+                        temp_m3u8_path = os.path.join(get_default_directory(), f"vod_{broadcast_id}_generated.m3u8")
+                        absolute_m3u8 = generated_m3u8.replace("\n0.ts", f"\n{base_url}0.ts")
+                        for i in range(1, 100000):
+                            if f"\n{i}.ts" in absolute_m3u8:
+                                absolute_m3u8 = absolute_m3u8.replace(f"\n{i}.ts", f"\n{base_url}{i}.ts")
+                            else:
+                                break
+                        with open(temp_m3u8_path, "w", encoding="utf-8") as f:
+                            f.write(absolute_m3u8)
+                        print(f"Generated m3u8 saved to: {temp_m3u8_path}")
+                        return url, vod_data.get("title"), vod_data.get("createdAt")
                     return None, None, None
         except (ValueError, IndexError, KeyError) as e:
             return None, None, None
@@ -4896,8 +5016,7 @@ def run_vod_recover():
                 elif mode == 3:
                     url = print_get_m3u8_link_menu()
                     unmute_vod(url)
-                    print(f'File saved to "{get_default_directory()}"')
-                    input("\nPress Enter to continue...")
+                    input("Press Enter to continue...")
                 elif mode == 4:
                     continue
             elif menu == 7:
