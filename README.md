@@ -14,7 +14,7 @@
 ## Installation
 
 1. Install [Python](https://www.python.org/downloads/), make sure the box labeled "Add Python to environment variables" is checked
-2. Download the app by clicking [here](https://github.com/MacielG1/VodRecovery/archive/refs/heads/main.zip) or download it from the [releases](https://github.com/MacielG1/VodRecovery/releases/latest) page
+2. Download the app by clicking [here](https://github.com/GuysletsPlay/VodRecovery/archive/refs/heads/main.zip) or download it from the [releases](https://github.com/GuysLetsPlay/VodRecovery/releases/latest) page
 3. Extract the zip file and run the file: `install_dependencies.py`
 4. Start by running `vod_recovery.py` or one of the shortcuts
 
@@ -28,10 +28,11 @@
 - Bulk recover VODs and clips from [Sullygnome](https://sullygnome.com/) CSVs
 - Unmute M3U8 files for playback in media players
 - Optional CLI mode usage
+- Auto copy Vod link to clipboard
 
 ## Latest Release
 
-https://github.com/MacielG1/VodRecovery/releases/latest
+https://github.com/GuysLetsPlay/VodRecovery/releases/latest
 
 ## Usage
 
@@ -71,3 +72,4 @@ python vod_recovery.py --m3u8 "https://example.com/index-dvr.m3u8" --watch
 
 - How Twitch Handles [VOD Storage](https://help.twitch.tv/s/article/video-on-demand#limit)
 - Original Repo: [VodRecovery](https://github.com/ArdianaLeek/VodRecovery) by Shishkebaboo
+- Forked from: [VodRecovery](https://github.com/MacielG1/VodRecovery) by MacielG1
